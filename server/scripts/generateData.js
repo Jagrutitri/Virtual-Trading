@@ -17,7 +17,6 @@ const stocks = [
 const TRADING_DAYS = 10;
 const START_DATE = new Date(Date.UTC(2025, 0, 6)); // Mon, 6 Jan 2025
 
-// Build the list of weekdays
 const days = [];
 let d = new Date(START_DATE);
 while (days.length < TRADING_DAYS) {
@@ -26,7 +25,7 @@ while (days.length < TRADING_DAYS) {
   d.setUTCDate(d.getUTCDate() + 1);
 }
 
-// 09:30, 10:00, ... 16:00 (14 slots per day)
+// 09:30, 10:00,... 16:00 (14 slots per day)
 const slots = [];
 for (let minutes = 9 * 60 + 30; minutes <= 16 * 60; minutes += 30) {
   slots.push(minutes);

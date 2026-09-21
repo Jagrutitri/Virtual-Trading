@@ -1,0 +1,86 @@
+body { 
+  font-family: system-ui, 
+  sans-serif; background: 
+  #f4f6f8; margin: 0; 
+}
+.app { 
+  max-width: 1100px; 
+  margin: 0 auto; 
+  padding: 16px; 
+}
+.card { background: #fff; 
+  border-radius: 8px; 
+  padding: 12px 16px; 
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.1); 
+}
+.clock { 
+  display: flex; 
+  gap: 12px; 
+  align-items: center; 
+  flex-wrap: wrap; 
+}
+.summary { display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+  gap: 12px; }
+.summary .card { 
+  margin: 0; 
+  display: flex; 
+  flex-direction: column; 
+}
+.row { 
+  display: flex; 
+  gap: 16px; 
+  flex-wrap: wrap; 
+}
+.grow { 
+  flex: 1; 
+  min-width: 
+  320px; 
+}
+.trade { 
+  width: 260px; 
+}
+table { 
+  width: 100%; 
+  border-collapse: collapse; 
+}
+th, td { 
+  text-align: left; 
+  padding: 6px 8px; 
+  border-bottom: 1px solid #eee; 
+}
+tbody tr { 
+  cursor: default; 
+}
+.picked { 
+  background: #eef5ff; 
+}
+.up { 
+  color: #0a8a3a; 
+}
+.down { 
+  color: #d12c2c; 
+}
+button { 
+  padding: 6px 12px; 
+  cursor: pointer; 
+}
+.buy { 
+  background: #0a8a3a; 
+  color: #fff; 
+  border: 0; 
+  margin-right: 8px; 
+}
+.sell { 
+  background: #d12c2c; 
+  color: #fff; 
+  border: 0; 
+}
+.link { 
+  background: none; 
+  border: 0; 
+  color: #666; 
+  text-decoration: underline; 
+  margin-top: 12px; 
+}

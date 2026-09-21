@@ -10,8 +10,8 @@ async function api(url, options) {
 
 const money = (n) =>
   "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const day = (iso) => iso.slice(0, 10);   // "2025-01-06"
-const time = (iso) => iso.slice(11, 16); // "10:00"
+const day = (iso) => iso.slice(0, 10);   
+const time = (iso) => iso.slice(11, 16); 
 const cls = (n) => (n > 0 ? "up" : n < 0 ? "down" : "");
 
 export default function App() {
@@ -24,7 +24,6 @@ export default function App() {
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState(null);
 
-  // Load the available time slots once
   useEffect(() => {
     api("/api/timestamps").then((ts) => {
       setTimestamps(ts);
@@ -32,7 +31,6 @@ export default function App() {
     });
   }, []);
 
-  // Reload everything whenever the selected time changes
   const refresh = useCallback(async () => {
     if (!at) return;
     const [s, p, t] = await Promise.all([

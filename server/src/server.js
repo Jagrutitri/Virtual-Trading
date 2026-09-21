@@ -15,18 +15,15 @@ function parseAt(value) {
   return isNaN(d) ? null : d;
 }
 
-// Latest price at or before the selected time
 const getPriceAt = (symbol, at) =>
   Price.findOne({ symbol, timestamp: { $lte: at } }).sort({ timestamp: -1 });
 
-// 1. All available time slots (for the date/time picker)
 app.get("/api/timestamps", async (req, res) => {
   const ts = await Price.distinct("timestamp");
   ts.sort((a, b) => a - b);
   res.json(ts.map((d) => d.toISOString()));
 });
 
-// 2. All stocks with price at the selected time + change vs previous slot
 app.get("/api/stocks", async (req, res) => {
   const at = parseAt(req.query.at);
   if (!at) return res.status(400).json({ error: "Invalid 'at' time" });
@@ -53,7 +50,6 @@ app.get("/api/stocks", async (req, res) => {
   res.json(result);
 });
 
-// 3. Portfolio with profit/loss at the selected time
 app.get("/api/portfolio", async (req, res) => {
   const at = parseAt(req.query.at);
   if (!at) return res.status(400).json({ error: "Invalid 'at' time" });
@@ -95,7 +91,6 @@ app.get("/api/portfolio", async (req, res) => {
   });
 });
 
-// 4. Buy or sell
 app.post("/api/trade", async (req, res) => {
   const { symbol, type, quantity, at } = req.body;
   const qty = Number(quantity);
@@ -148,12 +143,10 @@ app.post("/api/trade", async (req, res) => {
   res.json(tx);
 });
 
-// 5. Transaction history (newest first)
 app.get("/api/transactions", async (req, res) => {
   res.json(await Transaction.find().sort({ createdAt: -1 }));
 });
 
-// 6. Reset the account (handy for testing and demos)
 app.post("/api/reset", async (req, res) => {
   await Holding.deleteMany({});
   await Transaction.deleteMany({});

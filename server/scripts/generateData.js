@@ -25,7 +25,7 @@ while (days.length < TRADING_DAYS) {
   d.setUTCDate(d.getUTCDate() + 1);
 }
 
-// 09:30, 10:00,... 16:00 (14 slots per day)
+// 09:30, 10:00, upto 16:00 (14 slots per day)
 const slots = [];
 for (let minutes = 9 * 60 + 30; minutes <= 16 * 60; minutes += 30) {
   slots.push(minutes);

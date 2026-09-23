@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import "./App.css";
 
 async function api(url, options) {
@@ -9,10 +9,11 @@ async function api(url, options) {
 }
 
 const money = (n) =>
-  "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const day = (iso) => iso.slice(0, 10);   
-const time = (iso) => iso.slice(11, 16); 
-const cls = (n) => (n > 0 ? "up" : n < 0 ? "down" : "");
+  n == null ? "-" : "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const day = (iso) => iso.slice(0, 10);
+const time = (iso) => iso.slice(11, 16);
+const cls = (n) => (n > 0 ? "up" : n < 0 ? "down" : "muted");
+const arrow = (n) => (n > 0 ? "▲" : n < 0 ? "▼" : "•");
 
 export default function App() {
   const [timestamps, setTimestamps] = useState([]);
@@ -23,6 +24,8 @@ export default function App() {
   const [symbol, setSymbol] = useState("AAPL");
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState(null);
+  const [flash, setFlash] = useState({});
+  const prevPrices = useRef({});
 
   useEffect(() => {
     api("/api/timestamps").then((ts) => {
@@ -45,6 +48,23 @@ export default function App() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Flash price cells green/red for a moment when the price changes
+  useEffect(() => {
+    const changed = {};
+    stocks.forEach((s) => {
+      const prev = prevPrices.current[s.symbol];
+      if (prev != null && s.price != null && prev !== s.price) {
+        changed[s.symbol] = s.price > prev ? "up" : "down";
+      }
+      prevPrices.current[s.symbol] = s.price;
+    });
+    if (Object.keys(changed).length) {
+      setFlash(changed);
+      const t = setTimeout(() => setFlash({}), 750);
+      return () => clearTimeout(t);
+    }
+  }, [stocks]);
+
   async function trade(type) {
     try {
       await api("/api/trade", {
@@ -52,7 +72,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol, type, quantity, at }),
       });
-      setMessage({ ok: true, text: `${type} ${quantity} ${symbol} successful` });
+      setMessage({ ok: true, text: `${type} ${quantity} ${symbol} executed` });
       refresh();
     } catch (e) {
       setMessage({ ok: false, text: e.message });
@@ -65,7 +85,7 @@ export default function App() {
     refresh();
   }
 
-  if (!at || !portfolio) return <p>Loading...</p>;
+  if (!at || !portfolio) return <p style={{ color: "#6B7686", padding: 20 }}>Loading market data...</p>;
 
   const dates = [...new Set(timestamps.map(day))];
   const timesForDay = timestamps.filter((t) => day(t) === day(at));
@@ -74,103 +94,138 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1>Virtual Stock Trading</h1>
+      {/* Scrolling ticker tape */}
+      <div className="ticker-wrap">
+        <div className="ticker-track">
+          {[...stocks, ...stocks].map((s, i) => (
+            <span key={i} className="ticker-item">
+              <b>{s.symbol}</b>
+              <span className={cls(s.change)}>{money(s.price)} {arrow(s.change)} {Math.abs(s.changePct ?? 0)}%</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Header */}
+      <div className="header">
+        <div className="brand">
+          <h1>PAPER EXCHANGE</h1>
+          <span className="sub">virtual trading desk</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span className="live-badge"><span className="live-dot" /> SIMULATED FEED</span>
+          <span className="account-chip">DEMO ACCOUNT · <b>{money(portfolio.balance)}</b> cash</span>
+        </div>
+      </div>
 
       {/* Market clock */}
-      <section className="card clock">
-        <label>Date{" "}
+      <div className="panel clock">
+        <div className="field">
+          <span>DATE</span>
           <select value={day(at)} onChange={(e) => setAt(timestamps.find((t) => day(t) === e.target.value))}>
             {dates.map((d) => <option key={d}>{d}</option>)}
           </select>
-        </label>
-        <label>Time{" "}
+        </div>
+        <div className="field">
+          <span>TIME</span>
           <select value={at} onChange={(e) => setAt(e.target.value)}>
             {timesForDay.map((t) => <option key={t} value={t}>{time(t)}</option>)}
           </select>
-        </label>
-        <button disabled={idx === 0} onClick={() => setAt(timestamps[idx - 1])}>◀ Prev</button>
-        <button disabled={idx === timestamps.length - 1} onClick={() => setAt(timestamps[idx + 1])}>Next ▶</button>
-      </section>
+        </div>
+        <div className="divider" />
+        <button disabled={idx === 0} onClick={() => setAt(timestamps[idx - 1])}>◂ PREV</button>
+        <button disabled={idx === timestamps.length - 1} onClick={() => setAt(timestamps[idx + 1])}>NEXT ▸</button>
+        <span className="now">{day(at)} · {time(at)}</span>
+      </div>
 
-      {/* Summary */}
-      <section className="summary">
-        <div className="card"><small>Cash</small><b>{money(portfolio.balance)}</b></div>
-        <div className="card"><small>Holdings value</small><b>{money(portfolio.holdingsValue)}</b></div>
-        <div className="card"><small>Net worth</small><b>{money(portfolio.netWorth)}</b></div>
-        <div className="card"><small>Realized P/L</small><b className={cls(portfolio.realizedPnl)}>{money(portfolio.realizedPnl)}</b></div>
-        <div className="card"><small>Unrealized P/L</small><b className={cls(portfolio.unrealizedPnl)}>{money(portfolio.unrealizedPnl)}</b></div>
-        <div className="card"><small>Total P/L</small><b className={cls(portfolio.totalPnl)}>{money(portfolio.totalPnl)}</b></div>
-      </section>
+      {/* Summary strip */}
+      <div className="summary">
+        <div className="stat"><span>CASH</span><b>{money(portfolio.balance)}</b></div>
+        <div className="stat"><span>HOLDINGS VALUE</span><b>{money(portfolio.holdingsValue)}</b></div>
+        <div className="stat"><span>NET WORTH</span><b>{money(portfolio.netWorth)}</b></div>
+        <div className="stat"><span>REALIZED P/L</span><b className={cls(portfolio.realizedPnl)}>{money(portfolio.realizedPnl)}</b></div>
+        <div className="stat"><span>UNREALIZED P/L</span><b className={cls(portfolio.unrealizedPnl)}>{money(portfolio.unrealizedPnl)}</b></div>
+        <div className="stat"><span>TOTAL P/L</span><b className={cls(portfolio.totalPnl)}>{money(portfolio.totalPnl)}</b></div>
+      </div>
 
-      {/* Stocks + trade panel */}
+      {/* Market + trade ticket */}
       <div className="row">
-        <section className="card grow">
-          <h2>Market</h2>
+        <div className="panel">
+          <h2>MARKET</h2>
           <table>
-            <thead><tr><th>Symbol</th><th>Name</th><th>Price</th><th>Change</th></tr></thead>
+            <thead><tr><th>SYMBOL</th><th>NAME</th><th className="r">PRICE</th><th className="r">CHANGE</th></tr></thead>
             <tbody>
               {stocks.map((s) => (
-                <tr key={s.symbol} className={s.symbol === symbol ? "picked" : ""} onClick={() => setSymbol(s.symbol)}>
-                  <td>{s.symbol}</td><td>{s.name}</td>
-                  <td>{money(s.price)}</td>
-                  <td className={cls(s.change)}>{s.change} ({s.changePct}%)</td>
+                <tr key={s.symbol} className={`market-row ${s.symbol === symbol ? "picked" : ""}`} onClick={() => setSymbol(s.symbol)}>
+                  <td className="ticker-cell">{s.symbol}</td>
+                  <td className="muted">{s.name}</td>
+                  <td className={`r price-cell ${flash[s.symbol] ? "flash-" + flash[s.symbol] : ""}`}>{money(s.price)}</td>
+                  <td className={`r num ${cls(s.change)}`}>{arrow(s.change)} {s.change} ({s.changePct}%)</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </section>
+        </div>
 
-        <section className="card trade">
-          <h2>Trade</h2>
-          <p>Selected: <b>{symbol}</b> at <b>{selected ? money(selected.price) : "-"}</b></p>
+        <div className="panel trade-panel">
+          <h2>ORDER TICKET</h2>
+          <div className="selected-sym">{symbol}</div>
+          <div className="row-line"><span>Market price</span><b>{selected ? money(selected.price) : "-"}</b></div>
           <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-          <p>Total: {selected ? money(selected.price * quantity) : "-"}</p>
-          <button className="buy" onClick={() => trade("BUY")}>Buy</button>
-          <button className="sell" onClick={() => trade("SELL")}>Sell</button>
-          {message && <p className={message.ok ? "up" : "down"}>{message.text}</p>}
-          <button className="link" onClick={reset}>Reset account</button>
-        </section>
+          <div className="row-line"><span>Est. total</span><b>{selected ? money(selected.price * quantity) : "-"}</b></div>
+          <div className="trade-actions">
+            <button className="buy" onClick={() => trade("BUY")}>BUY</button>
+            <button className="sell" onClick={() => trade("SELL")}>SELL</button>
+          </div>
+          {message && <div className={`toast ${message.ok ? "ok" : "err"}`}>{message.text}</div>}
+          <button className="reset-link" onClick={reset}>Reset account</button>
+        </div>
       </div>
 
       {/* Portfolio */}
-      <section className="card">
-        <h2>Portfolio</h2>
-        {portfolio.holdings.length === 0 ? <p>No holdings yet.</p> : (
+      <div className="panel">
+        <h2>PORTFOLIO</h2>
+        {portfolio.holdings.length === 0 ? <p className="empty">No open positions.</p> : (
           <table>
-            <thead><tr><th>Symbol</th><th>Qty</th><th>Avg buy</th><th>Current</th><th>Value</th><th>P/L</th></tr></thead>
+            <thead><tr><th>SYMBOL</th><th className="r">QTY</th><th className="r">AVG BUY</th><th className="r">CURRENT</th><th className="r">VALUE</th><th className="r">P/L</th></tr></thead>
             <tbody>
               {portfolio.holdings.map((h) => (
                 <tr key={h.symbol}>
-                  <td>{h.symbol}</td><td>{h.quantity}</td><td>{money(h.avgPrice)}</td>
-                  <td>{money(h.currentPrice)}</td><td>{money(h.value)}</td>
-                  <td className={cls(h.pnl)}>{money(h.pnl)} ({h.pnlPct}%)</td>
+                  <td className="ticker-cell">{h.symbol}</td>
+                  <td className="r num">{h.quantity}</td>
+                  <td className="r num">{money(h.avgPrice)}</td>
+                  <td className="r num">{money(h.currentPrice)}</td>
+                  <td className="r num">{money(h.value)}</td>
+                  <td className={`r num ${cls(h.pnl)}`}>{money(h.pnl)} ({h.pnlPct}%)</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </section>
+      </div>
 
-      {/* History */}
-      <section className="card">
-        <h2>Transaction history</h2>
-        {transactions.length === 0 ? <p>No transactions yet.</p> : (
+      {/* Transaction log */}
+      <div className="panel">
+        <h2>TRANSACTION LOG</h2>
+        {transactions.length === 0 ? <p className="empty">No trades yet.</p> : (
           <table>
-            <thead><tr><th>Market time</th><th>Type</th><th>Symbol</th><th>Qty</th><th>Price</th><th>Total</th><th>Realized P/L</th></tr></thead>
+            <thead><tr><th>MARKET TIME</th><th>TYPE</th><th>SYMBOL</th><th className="r">QTY</th><th className="r">PRICE</th><th className="r">TOTAL</th><th className="r">REALIZED P/L</th></tr></thead>
             <tbody>
               {transactions.map((t) => (
                 <tr key={t._id}>
-                  <td>{day(t.simulatedTime)} {time(t.simulatedTime)}</td>
+                  <td className="num muted">{day(t.simulatedTime)} {time(t.simulatedTime)}</td>
                   <td className={t.type === "BUY" ? "up" : "down"}>{t.type}</td>
-                  <td>{t.symbol}</td><td>{t.quantity}</td>
-                  <td>{money(t.price)}</td><td>{money(t.total)}</td>
-                  <td className={cls(t.realizedPnl)}>{t.type === "SELL" ? money(t.realizedPnl) : "-"}</td>
+                  <td className="ticker-cell">{t.symbol}</td>
+                  <td className="r num">{t.quantity}</td>
+                  <td className="r num">{money(t.price)}</td>
+                  <td className="r num">{money(t.total)}</td>
+                  <td className={`r num ${cls(t.realizedPnl)}`}>{t.type === "SELL" ? money(t.realizedPnl) : "-"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </section>
+      </div>
     </div>
   );
 }
